@@ -14,7 +14,10 @@ import torch
 import numpy as np
 
 from ultralytics.models.yolo.detect import DetectionTrainer
-from ultralytics.utils.psddn_loss import PSDDNDetectionLoss
+try:
+    from ultralytics.utils.psddn_loss import PSDDNDetectionLoss
+except ImportError:
+    from psddn_loss import PSDDNDetectionLoss
 from ultralytics.utils import LOGGER
 
 
