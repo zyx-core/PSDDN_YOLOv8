@@ -18,7 +18,7 @@ try:
     from ultralytics.utils.psddn_loss import PSDDNDetectionLoss
 except ImportError:
     from psddn_loss import PSDDNDetectionLoss
-from ultralytics.utils import LOGGER
+from ultralytics.utils import DEFAULT_CFG, LOGGER
 
 
 class PSDDNTrainer(DetectionTrainer):
@@ -31,7 +31,7 @@ class PSDDNTrainer(DetectionTrainer):
     - Curriculum learning with 3 progressive folds
     """
     
-    def __init__(self, cfg=None, overrides=None, _callbacks=None):
+    def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
         """Initialize PSDDN trainer with custom settings."""
         super().__init__(cfg, overrides, _callbacks)
         
