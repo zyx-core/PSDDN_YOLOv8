@@ -63,6 +63,9 @@ desktop.ini
 .ipynb_checkpoints/
 *.ipynb
 
+# Keep Colab training notebook
+!PSDDN_Training_Colab.ipynb
+
 # Temporary files
 *.tmp
 *.bak
