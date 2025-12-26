@@ -74,10 +74,14 @@ class PSDDNTrainer(DetectionTrainer):
             if fold_file.exists():
                 with open(fold_file, 'r') as f:
                     fold_images = json.load(f)
+                    if not fold_images:
+                        LOGGER.warning(f"Fold file {fold_file.name} is empty!")
                     self.curriculum_folds.append(fold_images)
                     LOGGER.info(f"Loaded Fold {i}: {len(fold_images)} images")
             else:
-                LOGGER.warning(f"Fold file not found: {fold_file}")
+                LOGGER.error(f"CRITICAL: Fold file not found: {fold_file}")
+                # Add empty list to maintain index alignment
+                self.curriculum_folds.append([])
         
         if len(self.curriculum_folds) != 3:
             LOGGER.warning(f"Expected 3 folds, found {len(self.curriculum_folds)}")
@@ -220,6 +224,12 @@ def train_psddn(
     
     # Load curriculum folds
     trainer.load_curriculum_folds(folds_dir)
+    
+    # Sanity check
+    total_images = sum(len(f) for f in trainer.curriculum_folds)
+    if total_images == 0:
+        LOGGER.error("CRITICAL ERROR: No images found in curriculum folds. Training will likely fail.")
+        LOGGER.error(f"Check if {folds_dir} contains valid fold_1.json, etc.")
     
     # Start training
     LOGGER.info("Starting PSDDN training with curriculum learning...")
