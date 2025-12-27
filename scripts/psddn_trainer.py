@@ -19,6 +19,11 @@ try:
 except ImportError:
     from psddn_loss import PSDDNDetectionLoss
 from ultralytics.utils import DEFAULT_CFG, LOGGER
+try:
+    from online_gt_updater import OnlineGTUpdater
+except ImportError:
+    # Handle if script is imported differently
+    from scripts.online_gt_updater import OnlineGTUpdater
 
 
 class PSDDNTrainer(DetectionTrainer):
@@ -44,6 +49,20 @@ class PSDDNTrainer(DetectionTrainer):
         self.curriculum_folds = []  # Will be loaded from fold files
         self.current_fold_stage = 1  # Start with fold 1
         self.fold_epochs = [30, 30, 40]  # Epochs per fold stage
+        
+        # Initialize GT Updater if file provided
+        self.nn_distances_file = overrides.get('nn_distances', None) if overrides else None
+        if self.nn_distances_file and Path(self.nn_distances_file).exists():
+            self.gt_updater = OnlineGTUpdater(
+                labels_dir=overrides.get('labels_dir', 'data/labels'),
+                initial_nn_distances_file=self.nn_distances_file,
+                confidence_threshold=overrides.get('conf_refine', 0.5)
+            )
+            LOGGER.info(f"OnlineGTUpdater initialized with {self.nn_distances_file}")
+        else:
+            self.gt_updater = None
+            if self.nn_distances_file:
+                LOGGER.warning(f"NN distances file NOT found: {self.nn_distances_file}. Refinement disabled.")
         
         LOGGER.info("Initialized PSDDN Trainer")
     
@@ -156,24 +175,37 @@ class PSDDNTrainer(DetectionTrainer):
     def update_pseudo_gt(self):
         """
         Online GT Updating: Refine pseudo GT boxes using current model predictions.
-        
-        Algorithm:
-        1. Run inference on training set
-        2. For each pseudo GT box, find best prediction (highest score, smaller size)
-        3. Replace pseudo GT with refined prediction
-        4. Update label files on disk
         """
-        LOGGER.info("Running inference on training set for GT refinement...")
+        if not self.gt_updater:
+            LOGGER.warning("OnlineGTUpdater not initialized (missing nn_distances file). Skipping refinement.")
+            return
+
+        LOGGER.info("Running Online GT Refinement...")
         
-        # This is a placeholder - full implementation would:
-        # 1. Load training images
-        # 2. Run model inference
-        # 3. Match predictions to pseudo GT
-        # 4. Select best predictions (high score, size < d(g, NNg))
-        # 5. Update label files
+        # Get image paths for the current curriculum stage
+        active_stems = self.get_active_images()
+        if not active_stems:
+            # Fallback to all images in training loader
+            image_paths = self.train_loader.dataset.im_files
+        else:
+            # Filter only active images
+            image_paths = [
+                im for im in self.train_loader.dataset.im_files 
+                if Path(im).stem.replace('processed_', '') in active_stems
+            ]
+
+        if not image_paths:
+            LOGGER.warning("No images found for GT refinement!")
+            return
+
+        # Perform update
+        stats = self.gt_updater.update_gt(
+            model=self.model,
+            image_paths=image_paths,
+            device=next(self.model.parameters()).device
+        )
         
-        # For now, just log that we would do this
-        LOGGER.info("GT update completed (placeholder - implement full logic)")
+        LOGGER.info(f"GT update completed. Results: {stats}")
     
     def preprocess_batch(self, batch):
         """
