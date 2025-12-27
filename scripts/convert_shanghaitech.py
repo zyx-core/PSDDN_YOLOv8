@@ -17,6 +17,14 @@ def convert_mat_to_json(mat_dir, output_file):
         
     print(f"Found {len(mat_files)} MAT files in {mat_dir}")
     
+    # Check for image folder to verify filenames
+    image_dir = mat_path.parent.parent / "images"
+    has_processed_prefix = False
+    if image_dir.exists():
+        if list(image_dir.glob("processed_IMG_*.jpg")):
+             has_processed_prefix = True
+             print("Detected 'processed_' prefix in image files.")
+
     for mat_file in mat_files:
         try:
             # Load MAT file
@@ -31,7 +39,13 @@ def convert_mat_to_json(mat_dir, output_file):
                 continue
                 
             # Image name (remove GT_ prefix and .mat extension)
-            img_name = mat_file.stem.replace('GT_', '')
+            base_name = mat_file.stem.replace('GT_', '')
+            
+            # Adjust if images have prefix
+            if has_processed_prefix:
+                img_name = f"processed_{base_name}"
+            else:
+                img_name = base_name
             
             # Convert to list of [x, y] coordinates
             point_list = points.tolist()

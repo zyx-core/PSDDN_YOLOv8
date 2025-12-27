@@ -222,7 +222,7 @@ def main():
     report_file = Path(args.output) / "difficulty_report.txt"
     save_difficulty_report(image_difficulties, mean, std, report_file)
     
-    print(f"\n✓ Curriculum learning dataset prepared successfully!")
+    print(f"\n[OK] Curriculum learning dataset prepared successfully!")
 
 
 if __name__ == "__main__":

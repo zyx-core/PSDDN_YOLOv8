@@ -1,0 +1,8 @@
+path: C:/Users/arsha/PSDDN_YOLOv8/data/shanghaitech
+train: C:/Users/arsha/PSDDN_YOLOv8/data/ShanghaiTech/part_B/train_data/images
+val: C:/Users/arsha/PSDDN_YOLOv8/data/ShanghaiTech/part_B/test_data/images
+names:
+  0: head
+nc: 1
+
+# Limit to first 10 images for quick test (handled by trainer override, but good to document)

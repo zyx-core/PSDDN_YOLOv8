@@ -34,6 +34,9 @@ class PSDDNTrainer(DetectionTrainer):
     def __init__(self, cfg=DEFAULT_CFG, overrides=None, _callbacks=None):
         """Initialize PSDDN trainer with custom settings."""
         super().__init__(cfg, overrides, _callbacks)
+        # Fix for resume: Ensure 'epochs' override persists after check_resume
+        if overrides and 'epochs' in overrides:
+            self.args.epochs = overrides['epochs']
         
         # PSDDN-specific settings
         self.gt_update_interval = 10  # Update GT every 10 epochs
@@ -61,7 +64,7 @@ class PSDDNTrainer(DetectionTrainer):
     
     def load_curriculum_folds(self, folds_dir: str):
         """
-        Load curriculum learning folds from directory.
+        Load curriculum learning folds from directory with robust name matching.
         
         Args:
             folds_dir: Directory containing fold_1.json, fold_2.json, fold_3.json
@@ -74,10 +77,23 @@ class PSDDNTrainer(DetectionTrainer):
             if fold_file.exists():
                 with open(fold_file, 'r') as f:
                     fold_images = json.load(f)
+                    
                     if not fold_images:
                         LOGGER.warning(f"Fold file {fold_file.name} is empty!")
-                    self.curriculum_folds.append(fold_images)
-                    LOGGER.info(f"Loaded Fold {i}: {len(fold_images)} images")
+                    
+                    # Robust name handling: Keep just stems and handle 'processed_' prefix
+                    normalized_images = []
+                    for img in fold_images:
+                        stem = Path(img).stem.replace('processed_', '')
+                        normalized_images.append(stem)
+                    
+                    # MINI MODE: Limit to 20 images if config name contains 'mini'
+                    if 'mini' in str(self.args.data):
+                        LOGGER.info("MINI MODE ENABLED: Using first 20 images only.")
+                        normalized_images = normalized_images[:20]
+                        
+                    self.curriculum_folds.append(normalized_images)
+                    LOGGER.info(f"Loaded Fold {i}: {len(normalized_images)} entries")
             else:
                 LOGGER.error(f"CRITICAL: Fold file not found: {fold_file}")
                 # Add empty list to maintain index alignment
@@ -125,7 +141,7 @@ class PSDDNTrainer(DetectionTrainer):
         # Call parent training loop
         # We'll add a callback for GT updating
         self.add_callback("on_train_epoch_end", self.on_epoch_end_callback)
-        super()._do_train(world_size)
+        super()._do_train()
     
     def on_epoch_end_callback(self, trainer):
         """
@@ -165,16 +181,51 @@ class PSDDNTrainer(DetectionTrainer):
         
         This is called before each batch is processed.
         """
-        # Get active images for current stage
-        active_images = self.get_active_images()
-        
-        if active_images is not None:
-            # Filter batch to only include active images
-            # This requires modifying the batch dict
-            # For now, we'll just pass through
-            pass
+        # Note: Filtering at the batch level is inefficient in YOLOv8
+        # because the dataloader already prepared the batch.
+        # Instead, we filter at the dataset creation level (not implemented here yet)
+        # or we filter the loss based on image filenames.
         
         return super().preprocess_batch(batch)
+
+    def build_dataset(self, img_path, mode="train", batch=None):
+        """Build PSDDN dataset with curriculum filtering."""
+        from ultralytics.data.dataset import YOLODataset
+        
+        dataset = YOLODataset(
+            img_path=img_path,
+            imgsz=self.args.imgsz,
+            batch_size=batch,
+            augment=mode == "train",
+            hyp=self.args,
+            rect=self.args.rect,
+            cache=self.args.cache or None,
+            single_cls=self.args.single_cls,
+            stride=int(self.stride),
+            pad=0.0,
+            data=self.data,
+            classes=self.args.classes,
+            task=self.args.task
+        )
+        
+        if mode == "train" and self.curriculum_folds:
+            active_stems = self.get_active_images()
+            if active_stems:
+                LOGGER.info(f"Filtering dataset to {len(active_stems)} active images...")
+                # Filter im_files and labels
+                filtered_im_files = []
+                filtered_labels = []
+                for im, lb in zip(dataset.im_files, dataset.labels):
+                    stem = Path(im).stem.replace('processed_', '')
+                    if stem in active_stems:
+                        filtered_im_files.append(im)
+                        filtered_labels.append(lb)
+                
+                dataset.im_files = filtered_im_files
+                dataset.labels = filtered_labels
+                LOGGER.info(f"Dataset filtered: {len(dataset.im_files)} images remaining")
+                
+        return dataset
 
 
 def train_psddn(

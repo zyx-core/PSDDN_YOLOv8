@@ -1,80 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Dataset
+data/ShanghaiTech/part_A/
+data/ShanghaiTech/part_B/
+data/ShanghaiTech/*.json
+data/ShanghaiTech/folds/
+data/ShanghaiTech/labels/
 
-# Virtual Environment
-venv/
-ENV/
-env/
-
-# PyTorch
-*.pth
-*.pt
-*.ckpt
-
-# Training outputs
+# Training runs
 runs/
-results/
-report/
-*.log
 
-# Data (don't upload datasets)
-data/images/
-data/labels/
-data/folds/
-*.jpg
-*.png
-*.jpeg
+# Dependencies
+ultralytics_repo/
+__pycache__/
+*.pyc
 
-# Keep example data structure
-!data/example_annotations.json
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Jupyter
+# Others
+train_log.txt
+results.zip
 .ipynb_checkpoints/
-*.ipynb
-
-# Keep Colab training notebook
-!PSDDN_Training_Colab.ipynb
-
-# Temporary files
-*.tmp
-*.bak
-*.cache
-
-# YOLOv8 specific
-yolov8*.pt
-yolov8*.yaml
-wandb/
-
-# Keep important configs
-!yolov8n.yaml
